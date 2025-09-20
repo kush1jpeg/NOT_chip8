@@ -25,11 +25,11 @@ typedef struct {
   uint8_t sound_timer; // Sound timer
 
   uint8_t key[16];      // Hex keypad state
-  uint8_t gfx[64 * 32]; // Monochrome display (1 byte per pixel)
+  uint8_t gfx[64 * 32]; // 1D array of 64×32 = 2048 bytes.
   bool draw_flag;       // for the draw trigger
 } Chip8;
 
-void chip8_init(Chip8 *chip);
+void chip8_init(Chip8 *chip8);
 void drawGraphics(SDL_Renderer *renderer, Chip8 *chip8);
 void chip8_load(Chip8 *chip8, const char *rom_path);
 void chip8_cycle(Chip8 *chip8); // fetch, decode, execute

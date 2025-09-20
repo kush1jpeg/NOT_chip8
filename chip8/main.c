@@ -1,4 +1,5 @@
 #include "chip8.h"
+#include "funcTable.h"
 #include <SDL2/SDL.h>
 
 int main(int argc, char *argv[]) {
@@ -11,10 +12,11 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  SDL_Window *window = SDL_CreateWindow("NOT_chip8", SDL_WINDOWPOS_CENTERED,
-                                        SDL_WINDOWPOS_CENTERED, 640 * 4, // 620
-                                        320 * 4,                         // 320
-                                        SDL_WINDOW_SHOWN);
+  SDL_Window *window =
+      SDL_CreateWindow("NOT_chip8", SDL_WINDOWPOS_CENTERED,
+                       SDL_WINDOWPOS_CENTERED, 64 * 20, // 640 *2
+                       32 * 20,                         // 320 *2
+                       SDL_WINDOW_SHOWN);
 
   if (!window) {
     printf("SDL_CreateWindow Error: %s\n", SDL_GetError());
@@ -30,23 +32,27 @@ int main(int argc, char *argv[]) {
     SDL_Quit();
     return 1;
   }
-  SDL_RenderSetScale(renderer, 10, 10);
+  SDL_RenderSetScale(renderer, 20, 20);
   bool running = true;
   SDL_Event e; // to track the key pressed;
 
   // to init the chip8;
   Chip8 chip8;
+  memset(&chip8, 0, sizeof(Chip8)); // <- sets memory, registers, etc. to 0
   chip8.pc = 0x200;
 
   /*
-    8-> 500hz/60fps;
+    8 frames -> 500hz/60fps;
     500hz is the appx clock;
     speed of the chip8, so we are mimicing that;  */
   int cycles_per_frame = 8;
   uint32_t lastTimer = SDL_GetTicks64();
 
+  // to fill the fontset;
+  chip8_init(&chip8);
+
   // loading the rom;
-  chip8_load(&chip8, "../rom/Worm V4 [RB-Revival Studios, 2007].ch8");
+  chip8_load(&chip8, "../rom/testROM.ch8");
 
   while (running) {
     // sending the instructions while maintaining ~500hz speed.
@@ -60,16 +66,18 @@ int main(int argc, char *argv[]) {
       }
 
       if (chip8.sound_timer > 0) {
-        beep();
+        // beep();
         chip8.sound_timer--;
       }
-      lastTimer = SDL_GetTicks();
+      lastTimer = SDL_GetTicks64();
     }
     while (SDL_PollEvent(&e)) {
       if (e.type == SDL_QUIT) {
         running = false;
       } else if (e.type == SDL_KEYDOWN) {
-        printf("the key was pressed \n");
+        handle_key_event(&e, 1, chip8.key);
+      } else if (e.type == SDL_KEYUP) {
+        handle_key_event(&e, 0, chip8.key);
       }
     }
 

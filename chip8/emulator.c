@@ -1,3 +1,56 @@
+// Define a struct for mapping
 #include "chip8.h"
+#include <SDL2/SDL_events.h>
+typedef struct {
+  SDL_Keycode sdl_key;
+  int chip8_key;
+} KeyMap;
 
-void chip8_cycle(Chip8 *chip) {}
+// lookup table for handling the keyboard events
+static const KeyMap key_map[] = {
+    {SDLK_1, 0x1}, {SDLK_2, 0x2}, {SDLK_3, 0x3}, {SDLK_4, 0xC},
+    {SDLK_q, 0x4}, {SDLK_w, 0x5}, {SDLK_e, 0x6}, {SDLK_r, 0xD},
+    {SDLK_a, 0x7}, {SDLK_s, 0x8}, {SDLK_d, 0x9}, {SDLK_f, 0xE},
+    {SDLK_z, 0xA}, {SDLK_x, 0x0}, {SDLK_c, 0xB}, {SDLK_v, 0xF}};
+
+#define KEY_MAP_SIZE (sizeof(key_map) / sizeof(key_map[0]))
+
+void handle_key_event(const SDL_Event *e, int value, uint8_t *chip8_keys) {
+  for (size_t i = 0; i < KEY_MAP_SIZE; i++) {
+    if (e->key.keysym.sym == key_map[i].sdl_key) {
+      chip8_keys[key_map[i].chip8_key] = value;
+      break;
+    }
+  }
+}
+
+void chip8_init(Chip8 *chip8) {
+  uint8_t fontset[80] = {
+      0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+      0x20, 0x60, 0x20, 0x20, 0x70, // 1
+      0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+      0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+      0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+      0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+      0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+      0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+      0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+      0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+      0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+      0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+      0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+      0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+      0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+      0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+  };
+  memset(chip8->memory, 0, sizeof(chip8->memory));
+  memcpy(&chip8->memory[0], fontset, sizeof(fontset)); // <- fontset at 0x000
+  chip8->pc = 0x200;                                   // Programs start here
+  chip8->I = 0;
+  chip8->sp = 0;
+  chip8->delay_timer = 0;
+  chip8->sound_timer = 0;
+  memset(chip8->gfx, 0, sizeof(chip8->gfx));
+  memset(chip8->stack, 0, sizeof(chip8->stack));
+  memset(chip8->V, 0, sizeof(chip8->V));
+}

@@ -1,7 +1,6 @@
 #include "chip8.h"
 #include <SDL2/SDL_audio.h>
 #include <SDL2/SDL_timer.h>
-#include <SDL3/SDL_audio.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +12,7 @@ void chip8_load(Chip8 *chip8, const char *rom_path) {
     exit(1);
   }
 
+  printf("starting to load the rom");
   int pos = 0x200; // programs start at 0x200
   int c;
   while ((c = fgetc(rom)) != EOF) {
