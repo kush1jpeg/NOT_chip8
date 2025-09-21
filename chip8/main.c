@@ -1,5 +1,4 @@
 #include "chip8.h"
-#include "funcTable.h"
 #include <SDL2/SDL.h>
 
 int main(int argc, char *argv[]) {
@@ -34,7 +33,6 @@ int main(int argc, char *argv[]) {
   }
   SDL_RenderSetScale(renderer, 20, 20);
   bool running = true;
-  SDL_Event e; // to track the key pressed;
 
   // to init the chip8;
   Chip8 chip8;
@@ -52,9 +50,22 @@ int main(int argc, char *argv[]) {
   chip8_init(&chip8);
 
   // loading the rom;
-  chip8_load(&chip8, "../rom/testROM.ch8");
+  chip8_load(&chip8, "../rom/Pong.ch8");
 
   while (running) {
+    SDL_Event e;
+    while (SDL_PollEvent(&e)) {
+      if (e.type == SDL_QUIT) {
+        running = false;
+      } else if (e.type == SDL_KEYDOWN) {
+        beep();
+        printf("%s\n", SDL_GetKeyName(e.key.keysym.sym));
+        handle_key_event(&e, 1, chip8.key);
+      } else if (e.type == SDL_KEYUP) {
+        handle_key_event(&e, 0, chip8.key);
+      }
+    }
+
     // sending the instructions while maintaining ~500hz speed.
     for (int i = 0; i < cycles_per_frame; i++) {
       chip8_cycle(&chip8);
@@ -71,15 +82,6 @@ int main(int argc, char *argv[]) {
       }
       lastTimer = SDL_GetTicks64();
     }
-    while (SDL_PollEvent(&e)) {
-      if (e.type == SDL_QUIT) {
-        running = false;
-      } else if (e.type == SDL_KEYDOWN) {
-        handle_key_event(&e, 1, chip8.key);
-      } else if (e.type == SDL_KEYUP) {
-        handle_key_event(&e, 0, chip8.key);
-      }
-    }
 
     if (chip8.draw_flag) {
       drawGraphics(renderer, &chip8);
@@ -89,6 +91,7 @@ int main(int argc, char *argv[]) {
 
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
+  cleanup_beep();
   SDL_Quit();
 
   return EXIT_SUCCESS;

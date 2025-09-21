@@ -33,6 +33,10 @@ void chip8_init(Chip8 *chip8);
 void drawGraphics(SDL_Renderer *renderer, Chip8 *chip8);
 void chip8_load(Chip8 *chip8, const char *rom_path);
 void chip8_cycle(Chip8 *chip8); // fetch, decode, execute
+void beepInit();
 void beep();
+void cleanup_beep();
+
+void handle_key_event(const SDL_Event *e, int value, uint8_t *key);
 
 #endif

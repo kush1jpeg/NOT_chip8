@@ -1,6 +1,7 @@
 // Define a struct for mapping
 #include "chip8.h"
 #include <SDL2/SDL_events.h>
+
 typedef struct {
   SDL_Keycode sdl_key;
   int chip8_key;
@@ -15,11 +16,16 @@ static const KeyMap key_map[] = {
 
 #define KEY_MAP_SIZE (sizeof(key_map) / sizeof(key_map[0]))
 
-void handle_key_event(const SDL_Event *e, int value, uint8_t *chip8_keys) {
+void handle_key_event(const SDL_Event *e, int value, uint8_t *key) {
   for (size_t i = 0; i < KEY_MAP_SIZE; i++) {
+    SDL_Log("Event key: %s", SDL_GetKeyName(e->key.keysym.sym));
+
     if (e->key.keysym.sym == key_map[i].sdl_key) {
-      chip8_keys[key_map[i].chip8_key] = value;
-      break;
+      key[key_map[i].chip8_key] = value;
+      printf("✅ Match! CHIP-8 key %X set to %d\n", key_map[i].chip8_key,
+             value);
+      fflush(stdout);
+      return;
     }
   }
 }
@@ -44,13 +50,14 @@ void chip8_init(Chip8 *chip8) {
       0xF0, 0x80, 0xF0, 0x80, 0x80  // F
   };
   memset(chip8->memory, 0, sizeof(chip8->memory));
-  memcpy(&chip8->memory[0], fontset, sizeof(fontset)); // <- fontset at 0x000
-  chip8->pc = 0x200;                                   // Programs start here
+  memcpy(&chip8->memory[0x50], fontset, sizeof(fontset)); // <- fontset at 0x50
+  chip8->pc = 0x200;                                      // Programs start here
   chip8->I = 0;
   chip8->sp = 0;
   chip8->delay_timer = 0;
   chip8->sound_timer = 0;
+  memset(chip8->key, 0, sizeof(chip8->key));
   memset(chip8->gfx, 0, sizeof(chip8->gfx));
-  memset(chip8->stack, 0, sizeof(chip8->stack));
+  memset(chip8->stack, -1, sizeof(chip8->stack));
   memset(chip8->V, 0, sizeof(chip8->V));
 }

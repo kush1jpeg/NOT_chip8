@@ -25,8 +25,6 @@ void op_NULL(Chip8 *chip, uint16_t opcode);
 
 extern opcode_func main_table[16];
 
-void handle_key_event(const SDL_Event *e, int value, uint8_t *chip8_keys);
-
 void check_stack_bounds(Chip8 *chip, const char *context);
 
 #endif

@@ -1,16 +1,13 @@
 #include "chip8.h"
 #include "funcTable.h"
+#include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 void check_stack_bounds(Chip8 *chip, const char *context) {
-  if (chip->sp > 16) { // Chip-8 stack is 16 levels deep
+  if (chip->sp > 15) { // Chip-8 stack is 16 levels deep
     fprintf(stderr, "[FATAL] Stack overflow in %s (SP=%d)\n", context,
-            chip->sp);
-    exit(1);
-  }
-  if (chip->sp < 0) { // should never happen if sp is uint8_t
-    fprintf(stderr, "[FATAL] Stack underflow in %s (SP=%d)\n", context,
             chip->sp);
     exit(1);
   }
@@ -37,7 +34,6 @@ opcode_func main_table[16] = {
 };
 
 void chip8_cycle(Chip8 *chip8) {
-
   if (chip8->pc >= 4096) {
     printf("PC out of bounds: %X\n", chip8->pc);
     exit(1);
@@ -48,10 +44,7 @@ void chip8_cycle(Chip8 *chip8) {
 
   printf("PC: %03X  OPCODE: %04X\n", chip8->pc, opcode);
 
-  chip8->pc += 2;
-
   uint8_t high_nibble = (opcode & 0xF000) >> 12; // 0x6 type shit
-
   main_table[high_nibble](chip8, opcode);
 }
 
@@ -63,35 +56,47 @@ void op_1nnn(Chip8 *chip, uint16_t opcode) {
 
 // === 0x2nnn CALL addr ===
 void op_2nnn(Chip8 *chip, uint16_t opcode) {
-  check_stack_bounds(chip, "CALL-before");
+  if (chip->sp >= 16) {
+    fprintf(stderr, "[WARN] Stack full, ignoring CALL at PC=%03X\n", chip->pc);
+    chip->pc += 2; // move past the CALL to avoid infinite loop
+    return;        // skip push, but still execute opcode?
+  }
   chip->stack[chip->sp] = chip->pc;
   chip->sp++;
   chip->pc = opcode & 0x0FFF;
-  check_stack_bounds(chip, "CALL-after");
 }
 
 // === 0x3xkk SE Vx, byte ===
 void op_3xkk(Chip8 *chip, uint16_t opcode) {
   uint8_t x = (opcode & 0x0F00) >> 8;
   uint8_t kk = opcode & 0x00FF;
-  if (chip->V[x] == kk)
+  if (chip->V[x] == kk) {
+    chip->pc += 4;
+  } else {
     chip->pc += 2;
+  }
 }
 
 // === 0x4xkk SNE Vx, byte ===
 void op_4xkk(Chip8 *chip, uint16_t opcode) {
   uint8_t x = (opcode & 0x0F00) >> 8;
   uint8_t kk = opcode & 0x00FF;
-  if (chip->V[x] != kk)
+  if (chip->V[x] != kk) {
+    chip->pc += 4;
+  } else {
     chip->pc += 2;
+  }
 }
 
 // === 0x5xy0 SE Vx, Vy ===
 void op_5xy0(Chip8 *chip, uint16_t opcode) {
   uint8_t x = (opcode & 0x0F00) >> 8;
   uint8_t y = (opcode & 0x00F0) >> 4;
-  if (chip->V[x] == chip->V[y])
+  if (chip->V[x] == chip->V[y]) {
+    chip->pc += 4;
+  } else {
     chip->pc += 2;
+  }
 }
 
 // === 0x6xkk LD Vx, byte ===
@@ -99,6 +104,7 @@ void op_6xkk(Chip8 *chip, uint16_t opcode) {
   uint8_t x = (opcode & 0x0F00) >> 8;
   uint8_t kk = opcode & 0x00FF;
   chip->V[x] = kk;
+  chip->pc += 2;
 }
 
 // === 0x7xkk ADD Vx, byte ===
@@ -106,6 +112,7 @@ void op_7xkk(Chip8 *chip, uint16_t opcode) {
   uint8_t x = (opcode & 0x0F00) >> 8;
   uint8_t kk = opcode & 0x00FF;
   chip->V[x] += kk;
+  chip->pc += 2;
 }
 
 void op_0xxx(Chip8 *chip, uint16_t opcode) {
@@ -113,18 +120,21 @@ void op_0xxx(Chip8 *chip, uint16_t opcode) {
   case 0xE0: // CLS
     memset(chip->gfx, 0, sizeof(chip->gfx));
     chip->draw_flag = true;
+    chip->pc += 2;
     break;
   case 0xEE: // RET
-    check_stack_bounds(chip, "CALL-before");
-    printf("[STACK BEFORE] SP=%d | ", chip->sp);
-    if (chip->sp > 0) {
-      chip->sp--;
-      printf("[STACK] SP=%d | ", chip->sp);
+    if (chip->sp == 0) {
+      fprintf(stderr, "[FATAL] RET with empty stack at PC=%03X\n", chip->pc);
+      exit(1);
     }
+    chip->sp--;
     chip->pc = chip->stack[chip->sp];
-    check_stack_bounds(chip, "CALL-after");
     break;
+
   default:
+    fprintf(stderr, "[WARN] Unknown 0x0*** opcode %04X at PC=%03X\n", opcode,
+            chip->pc);
+    chip->pc += 2;
     break;
   }
 }
@@ -174,19 +184,27 @@ void op_8xy_(Chip8 *chip, uint16_t opcode) {
     chip->V[x] <<= 1;
     break;
   }
+  default:;
   }
+  chip->pc += 2;
 }
 
 // === 0x9xy0 SNE Vx, Vy ===
 void op_9xy0(Chip8 *chip, uint16_t opcode) {
   uint8_t x = (opcode & 0x0F00) >> 8;
   uint8_t y = (opcode & 0x00F0) >> 4;
-  if (chip->V[x] != chip->V[y])
+  if (chip->V[x] != chip->V[y]) {
+    chip->pc += 4;
+  } else {
     chip->pc += 2;
+  }
 }
 
 // === 0xAnnn LD I, addr ===
-void op_Annn(Chip8 *chip, uint16_t opcode) { chip->I = opcode & 0x0FFF; }
+void op_Annn(Chip8 *chip, uint16_t opcode) {
+  chip->I = opcode & 0x0FFF;
+  chip->pc += 2;
+}
 
 // === 0xBnnn JP V0, addr ===
 void op_Bnnn(Chip8 *chip, uint16_t opcode) {
@@ -198,6 +216,7 @@ void op_Cxkk(Chip8 *chip, uint16_t opcode) {
   uint8_t x = (opcode & 0x0F00) >> 8;
   uint8_t kk = opcode & 0x00FF;
   chip->V[x] = (rand() % 256) & kk;
+  chip->pc += 2;
 }
 
 // === 0xDxyn DRW Vx, Vy, nibble ===
@@ -222,6 +241,7 @@ void op_Dxyn(Chip8 *chip, uint16_t opcode) {
     }
   }
   chip->draw_flag = true;
+  chip->pc += 2;
 }
 
 // === 0xEx__ key input ===
@@ -229,12 +249,19 @@ void op_Ex__(Chip8 *chip, uint16_t opcode) {
   uint8_t x = (opcode & 0x0F00) >> 8;
   switch (opcode & 0x00FF) {
   case 0x9E:
-    if (chip->key[chip->V[x]])
+    if (chip->key[chip->V[x]]) {
+      chip->pc += 4;
+    } else {
       chip->pc += 2;
+    }
     break;
   case 0xA1:
-    if (!chip->key[chip->V[x]])
+    if (!chip->key[chip->V[x]]) {
+      chip->pc += 4;
+    } else {
       chip->pc += 2;
+    }
+    return;
     break;
   }
 }
@@ -243,47 +270,68 @@ void op_Ex__(Chip8 *chip, uint16_t opcode) {
 void op_fxxx(Chip8 *chip, uint16_t opcode) {
   uint8_t x = (opcode & 0x0F00) >> 8;
   switch (opcode & 0x00FF) {
+
   case 0x07:
     chip->V[x] = chip->delay_timer;
+    chip->pc += 2;
     break;
-  case 0x0A: {
-    // Wait for key
+
+  case 0x0A: { // Fx0A: Wait for key
     bool key_pressed = false;
     for (int i = 0; i < 16; i++) {
       if (chip->key[i]) {
-        chip->V[x] = i;
+        chip->V[x] = i; // store key in Vx
+        chip->pc += 2;  // advance PC
         key_pressed = true;
+        break;
       }
     }
-    if (!key_pressed)
-      chip->pc -= 2; // retry same opcode
+    if (!key_pressed) {
+      SDL_Log("Waiting for a key press...");
+      return;
+    }
     break;
   }
+
   case 0x15:
     chip->delay_timer = chip->V[x];
+    chip->pc += 2;
     break;
+
   case 0x18:
     chip->sound_timer = chip->V[x];
+    chip->pc += 2;
     break;
+
   case 0x1E:
     chip->I += chip->V[x];
+    chip->pc += 2;
     break;
+
   case 0x29:
-    chip->I = chip->V[x] * 5;
-    break;     // font sprites
+    chip->I = 0x50 + chip->V[x] * 5;
+    chip->pc += 2;
+    break; // font sprites
+
   case 0x33: { // BCD
     chip->memory[chip->I] = chip->V[x] / 100;
     chip->memory[chip->I + 1] = (chip->V[x] / 10) % 10;
     chip->memory[chip->I + 2] = chip->V[x] % 10;
+    chip->pc += 2;
     break;
   }
   case 0x55:
-    for (int i = 0; i <= x; i++)
+    for (int i = 0; i <= x; i++) {
       chip->memory[chip->I + i] = chip->V[i];
+    }
+    chip->pc += 2;
     break;
   case 0x65:
-    for (int i = 0; i <= x; i++)
+    for (int i = 0; i <= x; i++) {
       chip->V[i] = chip->memory[chip->I + i];
+    }
+    chip->pc += 2;
+
     break;
   }
 }
