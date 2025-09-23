@@ -42,7 +42,7 @@ void chip8_cycle(Chip8 *chip8) {
   uint16_t opcode =
       (chip8->memory[chip8->pc] << 8) | chip8->memory[chip8->pc + 1];
 
-  printf("PC: %03X  OPCODE: %04X\n", chip8->pc, opcode);
+  // printf("PC: %03X  OPCODE: %04X\n", chip8->pc, opcode);
 
   uint8_t high_nibble = (opcode & 0xF000) >> 12; // 0x6 type shit
   main_table[high_nibble](chip8, opcode);
@@ -61,7 +61,7 @@ void op_2nnn(Chip8 *chip, uint16_t opcode) {
     chip->pc += 2; // move past the CALL to avoid infinite loop
     return;        // skip push, but still execute opcode?
   }
-  chip->stack[chip->sp] = chip->pc;
+  chip->stack[chip->sp] = chip->pc + 2;
   chip->sp++;
   chip->pc = opcode & 0x0FFF;
 }
@@ -117,11 +117,17 @@ void op_7xkk(Chip8 *chip, uint16_t opcode) {
 
 void op_0xxx(Chip8 *chip, uint16_t opcode) {
   switch (opcode & 0x00FF) {
+
+  case 0x00: // NOP
+    chip->pc += 2;
+    break;
+
   case 0xE0: // CLS
     memset(chip->gfx, 0, sizeof(chip->gfx));
     chip->draw_flag = true;
     chip->pc += 2;
     break;
+
   case 0xEE: // RET
     if (chip->sp == 0) {
       fprintf(stderr, "[FATAL] RET with empty stack at PC=%03X\n", chip->pc);
@@ -225,6 +231,8 @@ void op_Dxyn(Chip8 *chip, uint16_t opcode) {
   uint8_t y = chip->V[(opcode & 0x00F0) >> 4];
   uint8_t height = opcode & 0x000F;
   chip->V[0xF] = 0;
+
+  printf("[DRW] I=%03X Vx=%d Vy=%d height=%d\n", chip->I, x, y, height);
 
   for (int row = 0; row < height; row++) {
     uint8_t sprite = chip->memory[chip->I + row];

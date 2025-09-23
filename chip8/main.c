@@ -36,15 +36,17 @@ int main(int argc, char *argv[]) {
 
   // to init the chip8;
   Chip8 chip8;
-  memset(&chip8, 0, sizeof(Chip8)); // <- sets memory, registers, etc. to 0
-  chip8.pc = 0x200;
-
   /*
+    can work by hardcoding too but lets do it the pro way with gpt
+
     8 frames -> 500hz/60fps;
     500hz is the appx clock;
     speed of the chip8, so we are mimicing that;  */
-  int cycles_per_frame = 8;
-  uint32_t lastTimer = SDL_GetTicks64();
+
+  uint64_t lastCycleTime = SDL_GetPerformanceCounter(); // current tick count
+  double perfFreq =
+      (double)SDL_GetPerformanceFrequency(); // no of ticks in 1 sec
+  uint32_t lastTimer = SDL_GetTicks64();     // since start
 
   // to fill the fontset;
   chip8_init(&chip8);
@@ -52,40 +54,49 @@ int main(int argc, char *argv[]) {
   // loading the rom;
   chip8_load(&chip8, "../rom/Pong.ch8");
 
+  // 500 Hz target
+  const double CHIP8_CYCLE_HZ = 500.0;
+  const double SECONDS_PER_CYCLE = 1.0 / CHIP8_CYCLE_HZ; // appx 0.2ish
+
+  double accumulator = 0.0;
+
   while (running) {
+    uint64_t now = SDL_GetPerformanceCounter();
+    double dt = (double)(now - lastCycleTime) / perfFreq; // time passed
+    lastCycleTime = now;
+
+    accumulator += dt;
+
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
-      if (e.type == SDL_QUIT) {
+      if (e.type == SDL_QUIT)
         running = false;
-      } else if (e.type == SDL_KEYDOWN) {
+      else if (e.type == SDL_KEYDOWN) {
         beep();
-        printf("%s\n", SDL_GetKeyName(e.key.keysym.sym));
         handle_key_event(&e, 1, chip8.key);
       } else if (e.type == SDL_KEYUP) {
         handle_key_event(&e, 0, chip8.key);
       }
     }
 
-    // sending the instructions while maintaining ~500hz speed.
-    for (int i = 0; i < cycles_per_frame; i++) {
+    // run as many cycles as fit in the accumulated time
+    while (accumulator >= SECONDS_PER_CYCLE) {
       chip8_cycle(&chip8);
+      accumulator -= SECONDS_PER_CYCLE;
     }
-    if ((SDL_GetTicks64() - lastTimer) >=
-        1000 / 60) { // ~16 ms as 1sec for 60fps
-      if (chip8.delay_timer > 0) {
-        chip8.delay_timer--;
-      }
 
-      if (chip8.sound_timer > 0) {
-        // beep();
+    // timers at 60 Hz
+    if ((SDL_GetTicks64() - lastTimer) >= (1000 / 60)) {
+      if (chip8.delay_timer > 0)
+        chip8.delay_timer--;
+      if (chip8.sound_timer > 0)
         chip8.sound_timer--;
-      }
       lastTimer = SDL_GetTicks64();
     }
 
     if (chip8.draw_flag) {
       drawGraphics(renderer, &chip8);
-      chip8.draw_flag = false; // reset until next draw opcode
+      chip8.draw_flag = false;
     }
   }
 

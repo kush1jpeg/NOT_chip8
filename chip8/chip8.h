@@ -18,8 +18,8 @@ typedef struct {
 
   uint16_t op; // to store the opcode
 
-  uint8_t stack[16]; // Stack (16 levels)
-  uint8_t sp;        // Stack pointer
+  uint16_t stack[16]; // Stack (16 levels)
+  uint8_t sp;         // Stack pointer
 
   uint8_t delay_timer; // Delay timer
   uint8_t sound_timer; // Sound timer

@@ -22,8 +22,7 @@ void handle_key_event(const SDL_Event *e, int value, uint8_t *key) {
 
     if (e->key.keysym.sym == key_map[i].sdl_key) {
       key[key_map[i].chip8_key] = value;
-      printf("✅ Match! CHIP-8 key %X set to %d\n", key_map[i].chip8_key,
-             value);
+      printf(" Match! CHIP-8 key %X set to %d\n", key_map[i].chip8_key, value);
       fflush(stdout);
       return;
     }
