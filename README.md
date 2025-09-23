@@ -14,7 +14,7 @@ MMMMMMMMMMM MMMMMMMMMMM MMMMMMMMMM oo MMMMMMMMMMM MMMMMMMMMMMM MMMM MMMMMMMMMMMM
 
 Forget pixels in HD. Forget shaders.  
 
-CHIP-8 is a virtual 8-bit machine developed in the late 1970s to run simple games on tiny computers like the COSMAC VIP and HP-48. It’s not real hardware—it’s an interpreter that emulates a machine with:
+CHIP-8 is a virtual 8-bit machine developed in the late 1970s to run simple games on tiny computers like the COSMAC VIP and HP-48. It’s not real hardware - it’s an interpreter that emulates a machine with:
 * 64×32 monochrome display
 * 16-key hexadecimal keypad
 * 35 opcodes for graphics, math, timers, and input
@@ -62,6 +62,16 @@ Dependencies:
 ```bash
 git clone https://github.com/kush1jpeg/NOT_chip8.git
 cd NOT_chip8
+cd chip8
 make run
 
 
+Acknowledgements - 
+
+http://devernay.free.fr/hacks/chip8/C8TECH10.HTM
+
+https://chip8.gulrak.net/reference/opcodes/
+
+https://slack-files.com/T3CH37TNX-F3RKEUKL4-b05ab4930d
+
+http://mattmik.com/files/chip8/mastering/chip8.html
