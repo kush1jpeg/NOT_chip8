@@ -64,7 +64,7 @@ git clone https://github.com/kush1jpeg/NOT_chip8.git
 cd NOT_chip8
 cd chip8
 make run
-
+```
 
 Acknowledgements - 
 
